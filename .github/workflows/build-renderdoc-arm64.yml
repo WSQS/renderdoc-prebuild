@@ -52,7 +52,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
             -DCMAKE_INSTALL_PREFIX=/opt/renderdoc-linux-arm64 \
             -DBUILD_VERSION_STABLE=ON \
-            -DENABLE_GL=ON \
+            -DENABLE_GL=OFF \
             -DENABLE_GLES=ON \
             -DENABLE_EGL=ON \
             -DENABLE_VULKAN=OFF \
