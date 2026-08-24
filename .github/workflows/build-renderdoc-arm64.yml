@@ -1,0 +1,119 @@
+name: Build RenderDoc ARM64
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RENDERDOC_REF: v1.45
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout prebuild repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            python3 \
+            zlib1g-dev \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu
+
+      - name: Checkout RenderDoc
+        uses: actions/checkout@v4
+        with:
+          repository: baldurk/renderdoc
+          ref: ${{ env.RENDERDOC_REF }}
+          path: renderdoc
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Configure ARM64 headless build
+        working-directory: renderdoc
+        run: |
+          cmake -S . -B build-arm64 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_INSTALL_PREFIX=/opt/renderdoc-linux-arm64 \
+            -DBUILD_VERSION_STABLE=ON \
+            -DENABLE_GL=ON \
+            -DENABLE_GLES=ON \
+            -DENABLE_EGL=ON \
+            -DENABLE_VULKAN=OFF \
+            -DENABLE_XLIB=OFF \
+            -DENABLE_XCB=OFF \
+            -DENABLE_UNSUPPORTED_EXPERIMENTAL_POSSIBLY_BROKEN_WAYLAND=OFF \
+            -DENABLE_QRENDERDOC=OFF \
+            -DENABLE_PYRENDERDOC=OFF \
+            -DENABLE_RENDERDOCCMD=ON
+
+      - name: Build and stage
+        working-directory: renderdoc
+        run: |
+          cmake --build build-arm64 --parallel
+          DESTDIR="$GITHUB_WORKSPACE/stage" cmake --install build-arm64
+
+      - name: Package and verify
+        run: |
+          set -eux
+          bundle="$GITHUB_WORKSPACE/renderdoc-linux-arm64"
+          cmd="$(find stage -type f -name renderdoccmd -print -quit)"
+          lib="$(find stage -type f -name librenderdoc.so -print -quit)"
+          test -n "$cmd"
+          test -n "$lib"
+          install -Dm755 "$cmd" "$bundle/renderdoccmd"
+          install -Dm755 "$lib" "$bundle/librenderdoc.so"
+          install -Dm755 capture_linuxcluster.sh "$bundle/capture_linuxcluster.sh"
+          cp renderdoc/LICENSE.md "$bundle/RENDERDOC_LICENSE.md"
+          printf 'RenderDoc ref: %s\nRenderDoc commit: %s\n' \
+            "$RENDERDOC_REF" \
+            "$(git -C renderdoc rev-parse HEAD)" > "$bundle/SOURCE.txt"
+          file "$bundle/renderdoccmd" "$bundle/librenderdoc.so"
+          readelf -d "$bundle/renderdoccmd" | grep NEEDED
+          readelf -d "$bundle/librenderdoc.so" | grep NEEDED
+          sha256sum \
+            "$bundle/renderdoccmd" \
+            "$bundle/librenderdoc.so" \
+            "$bundle/capture_linuxcluster.sh" \
+            "$bundle/RENDERDOC_LICENSE.md" \
+            "$bundle/SOURCE.txt" > "$bundle/SHA256SUMS"
+          tar -C "$GITHUB_WORKSPACE" -czf \
+            "$GITHUB_WORKSPACE/renderdoc-linux-arm64.tar.gz" \
+            renderdoc-linux-arm64
+          sha256sum renderdoc-linux-arm64.tar.gz \
+            > renderdoc-linux-arm64.tar.gz.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: renderdoc-linux-arm64
+          path: |
+            renderdoc-linux-arm64.tar.gz
+            renderdoc-linux-arm64.tar.gz.sha256
+          if-no-files-found: error
+
+      - name: Attach bundle to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            renderdoc-linux-arm64.tar.gz
+            renderdoc-linux-arm64.tar.gz.sha256
+          generate_release_notes: true
+          fail_on_unmatched_files: true
