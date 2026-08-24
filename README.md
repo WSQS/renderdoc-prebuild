@@ -6,7 +6,9 @@ ARM64 Linux devices such as the MT8668/auto8668p1 Yocto board.
 The build is intentionally headless:
 
 - `renderdoccmd` and `librenderdoc.so` are included;
-- OpenGL, OpenGL ES, and EGL capture support remain enabled;
+- OpenGL ES and EGL capture support remain enabled;
+- desktop OpenGL/GLX capture is disabled because the target runtime is
+  Wayland + OpenGL ES;
 - Qt, the desktop UI, Xlib/XCB window integration, Vulkan, and Python bindings
   are disabled;
 - no device-side system libraries are overwritten.
