@@ -22,7 +22,8 @@ if [ -e /sys/fs/selinux/enforce ]; then
 fi
 
 exec "$SCRIPT_DIR/renderdoccmd" capture \
+	--wait-for-exit \
 	--capture-file "$CAPTURE_FILE" \
+	--working-dir "$TARGET_DIR" \
 	"$RUNTIME" \
 	--rendering-driver opengl3
-
