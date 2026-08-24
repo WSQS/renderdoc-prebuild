@@ -63,15 +63,15 @@ the board with ADB and run:
 ```
 
 The helper pushes the RenderDoc command-line files to a private directory on
-the board and starts LinuxCluster through RenderDoc. Capture triggering may
-still require connecting desktop RenderDoc to the target control connection;
-the embedded Wayland/GLES path is experimental.
+the board, starts LinuxCluster through RenderDoc, forwards the target-control
+port over ADB, and uses the matching Windows `qrenderdoc.exe` Python API to
+trigger and copy one frame into `captures/`.
 
 The helper does not stop or modify unrelated Android applications. To stop a
 capture manually:
 
 ```powershell
-adb -s YOCTO shell "pkill -f /data/godot/linuxcluster/LinuxCluster || true"
+adb -s YOCTO shell "pkill -x LinuxCluster || true"
 ```
 
 RenderDoc capture support is experimental on this embedded Wayland/GLES
