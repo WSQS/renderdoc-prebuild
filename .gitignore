@@ -1,5 +1,6 @@
 dist/
 build/
+captures/
+renderdoc-linux-arm64/
 .venv/
 *.pyc
-
